@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import  messagebox
 import cv2
 import PIL.Image, PIL.ImageTk
 from functools import partial
@@ -11,8 +12,11 @@ import imutils
 import align.detect_face
 import numpy as np
 import time
+from message import Message 
 class CameraGUI:
     def __init__(self, main_gui,pnet,rnet,onet,camera):
+        r, g, b = 0, 91, 187
+        color_hex = '#%02x%02x%02x' % (r, g, b)
         self.count = 1
         self.HOST = '192.168.1.9'
         self.PORT = 12345
@@ -32,13 +36,19 @@ class CameraGUI:
         self.label = tk.Label(self.root)
         self.label.pack(pady = 100)
         self.label_huong_dan = tk.Label(self.root,text = 'Vui lòng để khuôn mặt bạn gần camera',
-                                        font=('Time New Roman',20,'bold'))
+                                        font=('Time New Roman',20,'bold'),bg=color_hex)
         self.label_huong_dan.pack(pady = 10)
-        self.back_button = tk.Button(self.root, text="Back", command=self.on_back_button_click)
+        self.back_button = tk.Button(self.root, text="Back", command=self.on_back_button_click,bg=color_hex)
         self.back_button.pack()
         self.thread = threading.Thread(target=self.show_frame)
         self.thread.daemon = True
         self.thread.start()
+        self.thread_rev = threading.Thread(target=self.recv_Server)
+        self.thread_rev.daemon = True
+        self.thread_rev.start()
+        
+        self.root.configure(bg=color_hex)
+        
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def show_frame(self):
@@ -61,8 +71,7 @@ class CameraGUI:
                 cv2.rectangle(frame, (bb[i][0], bb[i][1]), (bb[i][2], bb[i][3]), (0, 255, 0), 2)
                 x1, y1, x2, y2 = bb[i][0], bb[i][1], bb[i][2], bb[i][3]
                 if x1 > 0 and y1>0 and x2>0 and y2>2 :
-                    print(x1,y1,x2,y2)
-                    self.send_and_receive_Server(frame[y1:y2, x1:x2])
+                    self.send_Server(frame[y1:y2, x1:x2])
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = PIL.Image.fromarray(frame)
@@ -71,16 +80,35 @@ class CameraGUI:
         self.label.configure(image=imgtk)
         self.root.after(1, self.show_frame)
         
-    def send_and_receive_Server(self,frame):
+    def send_Server(self,frame):
         data = pickle.dumps(frame)
         self.s.sendall(struct.pack("I", len(data)))
         self.s.sendall(data)
-
+        
+    def recv_Server(self):
+        dict = {}
+        dict["Unknown"]=1
+        while True:
+            data_rev = self.s.recv(1024)
+            string = data_rev.decode('utf-8')
+            print(string)
+            if string != "Unknown":
+                self.root.after(3000, lambda : self.show_messagebox(string))
+                break
+            elif  dict["Unknown"]==10:
+                self.root.after(3000, lambda : self.show_messagebox('Unknown'))
+                break
+            dict["Unknown"] += 1
+                
+                
+        
     def on_closing(self):
         self.s.close()
         self.root.destroy()
         self.main_gui.deiconify()
-        
+    def show_messagebox(self,data):
+        self.root.destroy()
+        message = Message(self.main_gui,data)
     def on_back_button_click(self):
         self.s.close()
         self.root.destroy()

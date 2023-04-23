@@ -11,7 +11,7 @@ import pickle
 import socket
 import struct
 from threading import Thread
-
+import datetime
 
 class Server_Python:
     def __init__(self, Host, Port):
@@ -62,11 +62,17 @@ class Server_Python:
         best_class_probabilities = predictions[
             np.arange(len(best_class_indices)), best_class_indices]
         best_name = self.class_names[best_class_indices[0]]
-        if best_class_probabilities > 0.8:
+        if best_class_probabilities > 0.9:
             name = self.class_names[best_class_indices[0]]
         else:
             name = "Unknown"
         print(name)
+        self.send_data(client_socket, name)
+
+    def send_data(self, client_socket, data):
+        date_now = datetime.datetime.now()
+        print(date_now)
+        client_socket.sendall(data.encode() )
 
     def Start(self, client_socket, client_addr):
         while True:
@@ -80,7 +86,8 @@ class Server_Python:
             client_socket, client_addr = self.server_socket.accept()
             thread = Thread(target=self.Start, args=(client_socket, client_addr))
             thread.start()
-    def send_fileBase(self,id):
+
+    def send_fileBase(self, id):
         pass
 
 
