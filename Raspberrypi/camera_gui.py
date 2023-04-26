@@ -18,7 +18,7 @@ class CameraGUI:
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
         self.count = 1
-        self.HOST = '192.168.1.9'
+        self.HOST = '10.10.28.109'
         self.PORT = 12345
         self.MINSIZE = 100
         self.THRESHOLD = [0.6, 0.7, 0.7]

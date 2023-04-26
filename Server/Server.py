@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+
 import tensorflow as tf
 import facenet
 
@@ -12,9 +14,32 @@ import socket
 import struct
 from threading import Thread
 import datetime
-
+import pyrebase
 class Server_Python:
     def __init__(self, Host, Port):
+        self.Count =0
+        self.firebaseConfig = {
+            'apiKey': "AIzaSyDemEX4zM6WQAYVYewOk-0y6EOTrt4Jeq4",
+            'authDomain': "pbl5-c253c.firebaseapp.com",
+            'databaseURL': "https://pbl5-c253c-default-rtdb.firebaseio.com",
+            'projectId': "pbl5-c253c",
+            'storageBucket': "pbl5-c253c.appspot.com",
+            'messagingSenderId': "769387973080",
+            'appId': "1:769387973080:web:14271fb1bc1478688c8aad",
+            'measurementId': "G-DXRW3ZD08C"
+        }
+        self.firebase = pyrebase.initialize_app(self.firebaseConfig)
+        self.database = self.firebase.database()
+        self.storage =self. firebase.storage()
+        self.auth =self. firebase.auth()
+        self.email = "baoquocitf@gmail.com"
+        self.password = "123258zxc"
+        self.user = self.auth.sign_in_with_email_and_password(self.email, self.password)
+        self.period = {
+            1: ['7:00', '7:50'], 2: ['8:00', '8:50'], 3: ['9:00', '9:50'], 4: ['10:00', '10:50'], 5: ['11:00', '11:50'],
+            6: ['12:30', '13:20'], 7: ['13:30', '14:20'], 8: ['14:30', '15:20'], 9: ['15:30', '16:20'],
+            10: ['16:30', '17:20']
+        }
         self.Host = Host
         self.Port = Port
         self.BUFFER_SIZE = 4096
@@ -64,15 +89,19 @@ class Server_Python:
         best_name = self.class_names[best_class_indices[0]]
         if best_class_probabilities > 0.9:
             name = self.class_names[best_class_indices[0]]
+            self.send_data(client_socket, name)
+            self.send_fileBase(name,data)
+            client_socket.close()
         else:
             name = "Unknown"
+            self.send_data(client_socket, name)
+            self.send_fileBase(name, data)
+            client_socket.close()
         print(name)
-        self.send_data(client_socket, name)
+
 
     def send_data(self, client_socket, data):
-        date_now = datetime.datetime.now()
-        print(date_now)
-        client_socket.sendall(data.encode() )
+        client_socket.sendall(data.encode())
 
     def Start(self, client_socket, client_addr):
         while True:
@@ -82,14 +111,46 @@ class Server_Python:
                 pass
 
     def multi_Client(self):
+        print('Server start :')
         while True:
             client_socket, client_addr = self.server_socket.accept()
             thread = Thread(target=self.Start, args=(client_socket, client_addr))
             thread.start()
 
-    def send_fileBase(self, id):
-        pass
+    def send_fileBase(self, id,frame):
+        date_now = datetime.datetime.now()
+        dt = date_now.strftime("%d/%m/%Y :%H:%M")
+        if id != "Unknown":
 
+            path = f'Student/{id}'
+            student = self.database.child(path).get()
+            student = student.val()
+            print(student['name'])
+            self.Count+=1
+            name_img  = f'User{self.Count}.png'
+            cv2.imwrite(name_img, frame)
+            self.storage.child(name_img).put(name_img)
+            imageUrl = self.storage.child(name_img).get_url(name_img)
+            print(imageUrl)
+            data = {"avatar": imageUrl, "name": student['name'], "time": dt}
+            self.database.child("Users").child("user" + str(self.Count)).set(data)
+            os.remove(name_img)
+        else:
+            self.Count += 1
+            name_img = f'User{self.Count}.png'
+            cv2.imwrite(name_img, frame)
+            self.storage.child(name_img).put(name_img)
+            imageUrl = self.storage.child(name_img).get_url(name_img)
+            print(imageUrl)
+            data = {"avatar": imageUrl, "name": id, "time": dt}
+            self.database.child("Users").child("user" + str(self.Count)).set(data)
+            os.remove(name_img)
+    def get_Count(self):
+        data = self.database.child('Users').get()
+        for i in data:
+            self.Count +=1
 
 if __name__ == '__main__':
-    Server_Python('192.168.1.9', 12345).multi_Client()
+    main = Server_Python('192.168.1.9',54321)
+    main.get_Count()
+    main.multi_Client()
