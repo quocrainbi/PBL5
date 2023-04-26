@@ -18,8 +18,8 @@ class CameraGUI:
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
         self.count = 1
-        self.HOST = '10.10.28.109'
-        self.PORT = 12345
+        self.HOST = '192.168.1.9'
+        self.PORT = 54321
         self.MINSIZE = 100
         self.THRESHOLD = [0.6, 0.7, 0.7]
         self.FACTOR = 0.709
@@ -71,7 +71,11 @@ class CameraGUI:
                 cv2.rectangle(frame, (bb[i][0], bb[i][1]), (bb[i][2], bb[i][3]), (0, 255, 0), 2)
                 x1, y1, x2, y2 = bb[i][0], bb[i][1], bb[i][2], bb[i][3]
                 if x1 > 0 and y1>0 and x2>0 and y2>2 :
-                    self.send_Server(frame[y1:y2, x1:x2])
+                    try :
+            
+                        self.send_Server(frame[y1:y2, x1:x2])
+                    except :
+                        pass
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = PIL.Image.fromarray(frame)
@@ -86,19 +90,16 @@ class CameraGUI:
         self.s.sendall(data)
         
     def recv_Server(self):
-        dict = {}
-        dict["Unknown"]=1
         while True:
             data_rev = self.s.recv(1024)
             string = data_rev.decode('utf-8')
             print(string)
             if string != "Unknown":
-                self.root.after(3000, lambda : self.show_messagebox(string))
+                self.root.after(2000, lambda : self.show_messagebox(string))
                 break
-            elif  dict["Unknown"]==10:
-                self.root.after(3000, lambda : self.show_messagebox('Unknown'))
+            else :
+                self.root.after(2000, lambda : self.show_messagebox('Unknown'))
                 break
-            dict["Unknown"] += 1
                 
                 
         
