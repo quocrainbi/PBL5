@@ -24,7 +24,7 @@ class MainGUI:
         self.self_Label.pack()
         
         
-        with tf.Graph().as_default():
+        with tf.Graph().as_default():   
             self.gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=1)
             self.sess = tf.compat.v1.Session(
                 config=tf.compat.v1.ConfigProto(gpu_options=self.gpu_options, log_device_placement=False))

@@ -1,12 +1,12 @@
 import tkinter as tk
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 class Message:
     def __init__(self,main_gui,data):
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
-        GPIO.setup(17, GPIO.OUT)
+        # GPIO.setmode(GPIO.BCM)
+        # GPIO.setwarnings(False)
+        #GPIO.setup(17, GPIO.OUT)
         self.main_gui = main_gui
         self.root = tk.Toplevel(self.main_gui)
         self.root.attributes('-fullscreen', True)
@@ -20,12 +20,12 @@ class Message:
         self.button.pack(expand=True)
         self.root.configure(bg=color_hex)
         self.root.mainloop()
-    def error_Message(self):
-        while True:
-            GPIO.output(17, GPIO.HIGH)
-            time.sleep(1)
-            GPIO.output(17, GPIO.LOW)
-            time.sleep(1)
+    # def error_Message(self):
+    #     while True:
+    #         GPIO.output(17, GPIO.HIGH)
+    #         time.sleep(1)
+    #         GPIO.output(17, GPIO.LOW)
+    #         time.sleep(1)
     def data_True(self,data):
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)

@@ -12,13 +12,22 @@ import imutils
 import align.detect_face
 import numpy as np
 import time
-from message import Message 
+from message import Message
+from keras.models import load_model
 class CameraGUI:
     def __init__(self, main_gui,pnet,rnet,onet,camera):
+        self.IMG_SIZE = 24
+        self.Eye_isopen = False
+        self.Eye_isclose = False
+        self.model_eye = load_model('eye_status_classifier.h5')
+        self.left_eye_cascPath = 'haarcascade_lefteye_2splits.xml'
+        self.right_eye_cascPath = 'haarcascade_righteye_2splits.xml'
+        self.left_eye_detector = cv2.CascadeClassifier(self.left_eye_cascPath)
+        self.right_eye_detector = cv2.CascadeClassifier(self.right_eye_cascPath)
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
         self.count = 1
-        self.HOST = '192.168.1.9'
+        self.HOST = '192.168.1.15'
         self.PORT = 54321
         self.MINSIZE = 100
         self.THRESHOLD = [0.6, 0.7, 0.7]
@@ -71,12 +80,14 @@ class CameraGUI:
                 cv2.rectangle(frame, (bb[i][0], bb[i][1]), (bb[i][2], bb[i][3]), (0, 255, 0), 2)
                 x1, y1, x2, y2 = bb[i][0], bb[i][1], bb[i][2], bb[i][3]
                 if x1 > 0 and y1>0 and x2>0 and y2>2 :
-                    try :
-            
-                        self.send_Server(frame[y1:y2, x1:x2])
-                    except :
-                        pass
-
+                    gray = frame[y1:y2, x1:x2]
+                    if self.Eye_isopen == False or self.Eye_isclose == False:
+                        self.check_Eye(gray)
+                    else:
+                        try:
+                            self.send_Server(frame[y1:y2, x1:x2])
+                        except :
+                            print('Đã xảy ra lỗi')
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = PIL.Image.fromarray(frame)
         imgtk = PIL.ImageTk.PhotoImage(image=img)
@@ -85,9 +96,12 @@ class CameraGUI:
         self.root.after(1, self.show_frame)
         
     def send_Server(self,frame):
-        data = pickle.dumps(frame)
-        self.s.sendall(struct.pack("I", len(data)))
-        self.s.sendall(data)
+        try :
+            data = pickle.dumps(frame)
+            self.s.sendall(struct.pack("I", len(data)))
+            self.s.sendall(data)
+        except :
+            pass
         
     def recv_Server(self):
         while True:
@@ -100,14 +114,63 @@ class CameraGUI:
             else :
                 self.root.after(2000, lambda : self.show_messagebox('Unknown'))
                 break
-                
-                
+
+    def predict(self, img):
+        img = cv2.resize(img, (self.IMG_SIZE, self.IMG_SIZE)).astype('float32')
+        img /= 255
+        img = img.reshape(1, self.IMG_SIZE, self.IMG_SIZE, 1)
+        prediction = self.model_eye.predict(img)
+        if prediction < 0.1:
+            prediction = 'closed'
+        elif prediction > 0.90:
+            prediction = 'open'
+        else:
+            prediction = 'idk'
+        return prediction
+    def check_Eye(self,img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        left_eye = self.left_eye_detector.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30),
+        )
+        right_eye = self.right_eye_detector.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30),
+        )
+        eyes_detected = {'left': None, 'right': None}
+
+        for (x, y, w, h) in left_eye:
+            eyes_detected['left'] = (x, y, w, h)
+            tmp = self.predict(gray[y:y + h, x:x + w])
+            if tmp == 'closed':
+                self.Eye_isclose= True
+            elif tmp == 'open' :
+                self.Eye_isopen = True
+            print(tmp)
+            break
+
+        for (x, y, w, h) in right_eye:
+            eyes_detected['right'] = (x, y, w, h)
+            tmp = self.predict(gray[y:y + h, x:x + w])
+            if tmp == 'closed':
+                self.Eye_isclose = True
+            elif tmp == 'open':
+                self.Eye_isopen = True
+            print(tmp)
+            break
+        print(eyes_detected)
+
         
     def on_closing(self):
         self.s.close()
         self.root.destroy()
         self.main_gui.deiconify()
     def show_messagebox(self,data):
+        self.s.close()
         self.root.destroy()
         message = Message(self.main_gui,data)
     def on_back_button_click(self):
