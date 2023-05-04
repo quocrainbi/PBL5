@@ -32,14 +32,14 @@ class Message:
         data = 'Sinh viên '+data+'điểm danh thành công'
         self.label_huong_dan = tk.Label(self.root,text = data,
                                         font=('Time New Roman',20,'bold'),bg=color_hex)
-        self.label_huong_dan.pack(pady = 10)
+        self.label_huong_dan.place(relx=0,rely=0)
     def data_False(self):
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
         data = 'Bạn không thuộc sinh viên lơp này'
         self.label_huong_dan = tk.Label(self.root,text = data,
                                         font=('Time New Roman',20,'bold'),bg=color_hex)
-        self.label_huong_dan.pack(pady = 10)
+        self.label_huong_dan.place(relx=0,rely=0)
     def on_closing(self):
         self.root.destroy()
         self.main_gui.deiconify()
