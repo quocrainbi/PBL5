@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
@@ -20,6 +19,8 @@ from Server_mobie import Server_Mobie
 
 class Server_Python:
     def __init__(self, Host, Port):
+        self.dung=0
+        self.test =0
         self.Count = 0
         self.firebaseConfig = {
             'apiKey': "AIzaSyDemEX4zM6WQAYVYewOk-0y6EOTrt4Jeq4",
@@ -41,9 +42,6 @@ class Server_Python:
         self.Host = Host
         self.Port = Port
         self.BUFFER_SIZE = 4096
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.Host, self.Port))
-        self.server_socket.listen()
         self.CLASSIFIER_PATH = 'Models/facemodel.pkl'
         self.FACENET_MODEL_PATH = 'Models/20180402-114759.pb'
         self.INPUT_IMAGE_SIZE = 160
@@ -62,15 +60,9 @@ class Server_Python:
                 self.phase_train_placeholder = tf.compat.v1.get_default_graph().get_tensor_by_name("phase_train:0")
                 self.embedding_size = self.embeddings.get_shape()[1]
 
-    def recv_data(self, client_socket):
-        data_len = struct.unpack("I", client_socket.recv(struct.calcsize("I")))[0]
-        received_data = b""
-        while len(received_data) < data_len:
-            recv_data = client_socket.recv(data_len - len(received_data))
-            if not recv_data:
-                break
-            received_data += recv_data
-        data = pickle.loads(received_data)
+    def recv_data(self,pathimg,subpath):
+
+        data = cv2.imread(pathimg)
         scaled = cv2.resize(data, (self.INPUT_IMAGE_SIZE, self.INPUT_IMAGE_SIZE),
                             interpolation=cv2.INTER_CUBIC)
         scaled = facenet.prewhiten(scaled)
@@ -84,78 +76,45 @@ class Server_Python:
         best_name = self.class_names[best_class_indices[0]]
         if best_class_probabilities > 0.85:
             name = self.class_names[best_class_indices[0]]
-            self.send_data(client_socket, name)
-            self.send_fileBase(name,data)
-            client_socket.close()
+
         else:
             name = "Unknown"
-            self.send_data(client_socket, name)
-            self.send_fileBase(name, data)
-            client_socket.close()
-        print(name)
-
-    def send_data(self, client_socket, data):
-        client_socket.sendall(data.encode())
-
-    def Start(self, client_socket, client_addr):
-        while True:
-            try:
-                self.recv_data(client_socket)
-            except:
-                pass
-
-    def multi_Client(self):
-        print('Server start :')
-        while True:
-            client_socket, client_addr = self.server_socket.accept()
-            thread = Thread(target=self.Start, args=(client_socket, client_addr))
-            thread.start()
-
-    def send_fileBase(self, id, frame):
-        date_now = datetime.datetime.now()
-        dt = date_now.strftime("%d/%m/%Y :%H:%M")
-        if id != "Unknown":
-
-            path = f'Student/{id}'
-            student = self.database.child(path).get()
-            student = student.val()
-            self.Count = self.get_Count()
-            name_img = f'User{self.Count+1}.jpg'
-            print(name_img)
-            cv2.imwrite(name_img, frame)
-            self.storage.child(name_img).put(name_img)
-            imageUrl = self.storage.child(name_img).get_url(name_img)
-            print(imageUrl)
-            data = {"avatar": imageUrl, "id":int(id),"name": student['name'], "time": dt}
-            self.database.child("Users").child("user" + str(self.Count+1)).set(data)
-            os.remove(name_img)
-        # else:
-        #     self.Count = self.get_Count()
-        #     name_img = f'User{self.Count+1}.jpg'
-        #     cv2.imwrite(name_img, frame)
-        #     self.storage.child(name_img).put(name_img)
-        #     imageUrl = self.storage.child(name_img).get_url(name_img)
-        #     print(imageUrl)
-        #     data = {"avatar": imageUrl, "id":None,"name": None, "time": dt}
-        #     self.database.child("Users").child("user" + str(self.Count+1)).set(data)
-        #     os.remove(name_img)
-
-    def get_Count(self):
-        self.Count = 0
-        data = self.database.child('Users').get()
-        for i in data:
-            self.Count += 1
-        tmp = self.Count
-        return tmp
+        if name ==  subpath:
+            self.dung+=1
+        self.test+=1
 
 
-def create_Server_Mobie():
-    server_Mobie = Server_Mobie('192.168.1.11', 9999)
-    server_Mobie.multi_Client()
+    def process_images(self,directory_path):
+        # Lấy danh sách thư mục con trong thư mục gốc
+        subdirectories = [subdir for subdir in os.listdir(directory_path) if
+                          os.path.isdir(os.path.join(directory_path, subdir))]
+
+        for subdir in subdirectories:
+            subdir_path = os.path.join(directory_path, subdir)
+
+
+            # Lấy tên thư mục con
+            subdir_name = os.path.basename(subdir_path)
+
+            # Lấy danh sách tệp ảnh trong thư mục con
+            image_files = [file for file in os.listdir(subdir_path) if file.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
+            for image_file in image_files:
+                image_path = os.path.join(subdir_path, image_file)
+
+                # Đọc ảnh
+
+                self.recv_data(image_path,subdir_name)
+
+
+
+
+
 
 
 if __name__ == '__main__':
-    main = Server_Python('192.168.1.11', 54321)
-    threading_server_Mobie = Thread(target=create_Server_Mobie)
-    threading_server_Mobie.start()
-    main.multi_Client()
+    main = Server_Python('192.168.9.221', 54321)
+    main.process_images('data')
+    print(f'Kết quả nhận dạng đúng:{main.dung}')
+    print(f'Số lượng test :{main.test}')
+    print(f'Phần trăm nhận dạng đúng :{main.dung/main.test}')

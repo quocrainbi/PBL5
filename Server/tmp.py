@@ -1,3 +1,5 @@
+
+from scipy.misc import imresize, imsave
 import pyrebase
 import cv2
 firebaseConfig = {

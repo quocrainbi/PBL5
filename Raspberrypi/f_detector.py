@@ -33,8 +33,6 @@ def convert_rightbox(img,box_right):
 
 class detect_face_orientation():
     def __init__(self):
-        # crear el detector de rostros frontal
-        self.detect_frontal_face = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
         # crear el detector de perfil rostros
         self.detect_perfil_face = cv2.CascadeClassifier('haarcascade_profileface.xml')
     def face_orientation(self,gray):

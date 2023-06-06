@@ -20,7 +20,7 @@ import f_detector
 
 class CameraGUI:
     def __init__(self, main_gui, pnet, rnet, onet, camera):
-        self.count_check = 10
+        self.count_check = 3
         self.profile_detector = f_detector.detect_face_orientation()
         self.check_face = False
         self.questions = [
@@ -39,7 +39,7 @@ class CameraGUI:
         r, g, b = 0, 91, 187
         color_hex = '#%02x%02x%02x' % (r, g, b)
         self.count = 1
-        self.HOST = '192.168.1.15'
+        self.HOST = '192.168.1.11'
         self.PORT = 54321
         self.MINSIZE = 100
         self.THRESHOLD = [0.6, 0.7, 0.7]
@@ -47,8 +47,8 @@ class CameraGUI:
         self.pnet = pnet
         self.rnet = rnet
         self.onet = onet
-        # self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.s.connect((self.HOST, self.PORT))
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.HOST, self.PORT))
         self.main_gui = main_gui
         self.camera = camera
         self.root = tk.Toplevel(self.main_gui)
@@ -64,21 +64,21 @@ class CameraGUI:
         self.thread_check_face = threading.Thread(target=self.check_face_oriented)
         self.thread_check_face.daemon = True
         self.thread_check_face.start()
-        self.thread = threading.Thread(target=self.show_frame)
-        self.thread.daemon = True
+        # self.thread = threading.Thread(target=self.show_frame)
+        # self.thread.daemon = True
         # self.thread.start()
         self.thread_rev = threading.Thread(target=self.recv_Server)
         self.thread_rev.daemon = True
-        # self.thread_rev.start()
+        self.thread_rev.start()
         self.root.configure(bg=color_hex)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def show_frame(self):
+        print('show')
         frame = self.camera.read()
         frame = imutils.resize(frame, height=250)
         frame = cv2.flip(frame, 1)
         if self.check_face:
-
             bounding_boxes, _ = align.detect_face.detect_face(frame, self.MINSIZE, self.pnet, self.rnet, self.onet,
                                                               self.THRESHOLD, self.FACTOR)
             faces_found = bounding_boxes.shape[0]
@@ -103,7 +103,7 @@ class CameraGUI:
                             try:
                                 self.send_Server(frame[y1:y2, x1:x2])
                             except:
-                                print('Đã xảy ra lỗi')
+                                pass
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = PIL.Image.fromarray(frame)
         imgtk = PIL.ImageTk.PhotoImage(image=img)
@@ -113,6 +113,7 @@ class CameraGUI:
 
     def send_Server(self, frame):
         try:
+            print('senddata')
             data = pickle.dumps(frame)
             self.s.sendall(struct.pack("I", len(data)))
             self.s.sendall(data)
@@ -120,16 +121,19 @@ class CameraGUI:
             pass
 
     def recv_Server(self):
-        while True:
-            data_rev = self.s.recv(1024)
-            string = data_rev.decode('utf-8')
-            print(string)
-            if string != "Unknown":
-                self.root.after(2000, lambda: self.show_messagebox(string))
-                break
-            else:
-                self.root.after(2000, lambda: self.show_messagebox('Unknown'))
-                break
+        try:
+            while True:
+                data_rev = self.s.recv(1024)
+                string = data_rev.decode('utf-8')
+                print(string)
+                if string != "Unknown":
+                    self.root.after(1, lambda: self.show_messagebox(string))
+                    break
+                else:
+                    self.root.after(1, lambda: self.show_messagebox('Unknown'))
+                    break
+        except:
+            pass
 
     def predict(self, img):
         img = cv2.resize(img, (self.IMG_SIZE, self.IMG_SIZE)).astype('float32')
@@ -187,9 +191,9 @@ class CameraGUI:
         self.main_gui.deiconify()
 
     def show_messagebox(self, data):
-        #self.s.close()
+        self.s.close()
         self.root.destroy()
-        message = Message(self.main_gui, data)
+        Message(self.main_gui, data)
 
     def on_back_button_click(self):
         self.s.close()
@@ -207,15 +211,13 @@ class CameraGUI:
             question_tmp = self.questions[index_question]
             tmp = 0
             self.root.after(1, lambda: self.config_label(f'{i_questions}.'+question_tmp))
-            for i_try in range(100 ):
+            for i_try in range(100):
                 frame = self.camera.read()
                 img = cv2.flip(frame, 1)
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 box_orientation, orientation = self.profile_detector.face_orientation(gray)
-                print(orientation)
                 if len(orientation) != 0:
                     check_face  = self.challenge_result(question_tmp,orientation[0])
-                    print(check_face)
                     if check_face == 'pass':
                         tmp += 1
                         if tmp == self.count_check:
@@ -223,8 +225,13 @@ class CameraGUI:
                             break
                 self.root.after(1, lambda: self.Show_img(frame))
             if dict_check[i_questions] == False:
-                self.show_messagebox("Unknow")
+                self.root.after(1, lambda: self.show_messagebox('Fake'))
                 break
+        if dict_check[0] == True and dict_check[1] == True and dict_check[2] == True and dict_check[3   ] == True :
+            self.config_label('Vui lòng để mặt chính giữa')
+            self.check_face = True
+            self.show_frame()
+
 
     def Show_img(self, frame):
         frame = imutils.resize(frame, height=250)
